@@ -1,6 +1,92 @@
+use std::fmt::{Display, Formatter};
+
+enum SmartHouseError {
+    ErrNotFound,
+}
+
+struct House<'a> {
+    name: String,
+    rooms: Vec<Room<'a>>,
+}
+
+impl<'a> House<'a> {
+    fn _new(name: String) -> Self {
+        House {
+            name,
+            rooms: Vec::new(),
+        }
+    }
+
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    fn get_rooms(&self) -> Vec<&str> {
+        self.rooms.iter().map(|f| f.get_name()).collect()
+    }
+
+    fn devices(&self, room: &str) -> Result<Vec<&str>, SmartHouseError> {
+        for rm in &self.rooms {
+            if room == rm.get_name() {
+                return Ok(rm.devices());
+            }
+        }
+        Err(SmartHouseError::ErrNotFound)
+    }
+
+    fn dev_location(&self, room: &str, dev: &str) -> Result<Location, SmartHouseError> {
+        match self.devices(room) {
+            Ok(devs) => {
+                for dv in devs {
+                    if dv == dev {
+                        return Ok(Location {
+                            house: String::from(self.get_name()),
+                            room: String::from(room),
+                        });
+                    }
+                }
+                Err(SmartHouseError::ErrNotFound)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn _create_report(&self, reporter: &dyn DeviceInfoProvider) -> String {
+        reporter.create_report(self)
+    }
+}
+
+struct Room<'a> {
+    name: String,
+    devices: Vec<&'a dyn Device>,
+}
+
+impl<'a> Room<'a> {
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+    fn devices(&self) -> Vec<&str> {
+        self.devices.iter().map(|f| f.get_name()).collect()
+    }
+}
+
+trait Device {
+    fn report(&self) -> String;
+    fn get_name(&self) -> &str;
+}
+
 enum _WattageUnit {
-    MW,
-    GW,
+    _MW,
+    _GW,
+}
+
+impl Display for _WattageUnit {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            _WattageUnit::_MW => write!(f, "mw"),
+            _WattageUnit::_GW => write!(f, "gw"),
+        }
+    }
 }
 
 struct _Wattage {
@@ -8,7 +94,11 @@ struct _Wattage {
     unit: _WattageUnit,
 }
 
-struct _Socket {}
+struct _Socket {
+    name: String,
+    on: bool,
+    wattage: _Wattage,
+}
 
 impl _Socket {
     fn _new() -> Self {
@@ -28,9 +118,30 @@ impl _Socket {
     }
 }
 
+impl Device for _Socket {
+    fn report(&self) -> String {
+        format!(
+            "socket {}, on {}, {} {}",
+            self.name, self.on, self.wattage.val, self.wattage.unit
+        )
+    }
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+}
+
 enum _TemperatureUnit {
-    Fahrenheit,
-    Celsius,
+    _Fahrenheit,
+    _Celsius,
+}
+
+impl Display for _TemperatureUnit {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            _TemperatureUnit::_Fahrenheit => write!(f, "f"),
+            _TemperatureUnit::_Celsius => write!(f, "c"),
+        }
+    }
 }
 
 struct _Temperature {
@@ -38,7 +149,10 @@ struct _Temperature {
     unit: _TemperatureUnit,
 }
 
-struct _Termometer {}
+struct _Termometer {
+    name: String,
+    temp: _Temperature,
+}
 
 impl _Termometer {
     fn _new() -> Self {
@@ -47,6 +161,71 @@ impl _Termometer {
     fn _temperature(&self) -> _Temperature {
         todo!()
     }
+}
+
+impl Device for _Termometer {
+    fn report(&self) -> String {
+        format!(
+            "termometer {}, {} {}",
+            self.name, self.temp.val, self.temp.unit,
+        )
+    }
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+}
+
+#[derive(Clone)]
+struct Location {
+    house: String,
+    room: String,
+}
+
+trait DeviceInfoProvider {
+    fn create_report(&self, house: &House) -> String;
+}
+
+struct OwningDeviceInfoProvider {
+    socket: _Socket,
+}
+
+impl DeviceInfoProvider for OwningDeviceInfoProvider {
+    fn create_report(&self, house: &House) -> String {
+        build_report(house, &self.socket)
+    }
+}
+
+struct BorrowingDeviceInfoProvider<'a, 'b> {
+    socket: &'a _Socket,
+    thermo: &'b _Termometer,
+}
+
+impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
+    fn create_report(&self, house: &House) -> String {
+        let mut report = build_report(house, self.socket);
+        report.push_str(build_report(house, self.thermo).as_str());
+        report
+    }
+}
+
+fn build_report(house: &House, dev: &dyn Device) -> String {
+    let rooms = house.get_rooms();
+
+    let mut report = String::new();
+    rooms.iter().for_each(|f| {
+        if let Ok(loc) = house.dev_location(f, dev.get_name()) {
+            report.push_str(
+                format!(
+                    "Device was detected in {}, {}, state: {}\n",
+                    loc.house,
+                    loc.room,
+                    dev.report()
+                )
+                .as_str(),
+            )
+        }
+    });
+    report
 }
 
 fn main() {}
