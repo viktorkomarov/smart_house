@@ -10,9 +10,9 @@ struct House<'a> {
 }
 
 impl<'a> House<'a> {
-    fn _new(name: String) -> Self {
+    fn _new(name: &str) -> Self {
         House {
-            name,
+            name: String::from(name),
             rooms: Vec::new(),
         }
     }
@@ -101,8 +101,15 @@ struct _Socket {
 }
 
 impl _Socket {
-    fn _new() -> Self {
-        todo!()
+    fn _new(name: &str) -> Self {
+        Self {
+            name: String::from(name),
+            on: false,
+            wattage: _Wattage {
+                val: 0,
+                unit: _WattageUnit::_MW,
+            },
+        }
     }
     fn _plug_in(&mut self) {
         todo!()
@@ -155,8 +162,14 @@ struct _Termometer {
 }
 
 impl _Termometer {
-    fn _new() -> Self {
-        todo!()
+    fn _new(name: &str) -> Self {
+        _Termometer {
+            name: String::from(name),
+            temp: _Temperature {
+                val: 0,
+                unit: _TemperatureUnit::_Celsius,
+            },
+        }
     }
     fn _temperature(&self) -> _Temperature {
         todo!()
@@ -228,4 +241,29 @@ fn build_report(house: &House, dev: &dyn Device) -> String {
     report
 }
 
-fn main() {}
+fn main() {
+    // Инициализация устройств
+    let socket1 = _Socket::_new("socket_1");
+    let socket2 = _Socket::_new("socket_2");
+    let thermo = _Termometer::_new("thermo_1");
+
+    // Инициализация дома
+    let house = House::_new("house");
+
+    // Строим отчёт с использованием `OwningDeviceInfoProvider`.
+    let info_provider_1 = OwningDeviceInfoProvider { socket: socket1 };
+    // todo: после добавления обобщённого аргумента в метод, расскоментировать передачу параметра
+    let report1 = house._create_report(&info_provider_1);
+
+    // Строим отчёт с использованием `BorrowingDeviceInfoProvider`.
+    let info_provider_2 = BorrowingDeviceInfoProvider {
+        socket: &socket2,
+        thermo: &thermo,
+    };
+    // todo: после добавления обобщённого аргумента в метод, расскоментировать передачу параметра
+    let report2 = house._create_report(&info_provider_2);
+
+    // Выводим отчёты на экран:
+    println!("Report #1: {report1}");
+    println!("Report #2: {report2}");
+}
