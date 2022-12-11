@@ -1,0 +1,6 @@
+[package]
+name = "smart_house_examples"
+version = "0.0.1"
+
+[dependencies]
+smart_house = {git = "https://github.com/viktorkomarov/smart_house"}
